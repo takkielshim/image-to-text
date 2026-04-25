@@ -1,6 +1,8 @@
 # Core ML
 torch==2.2.2
 torchvision==0.17.2
+# torchvision 0.17.2 was compiled against NumPy 1.x and crashes with NumPy 2.x
+numpy>=1.21,<2.0
 
 # Vision-language encoders
 # transformers>=5.0 requires torch>=2.4, so pin below 5.0
