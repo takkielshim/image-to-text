@@ -1,0 +1,14 @@
+# Core ML
+torch==2.2.2
+torchvision==0.17.2
+
+# Vision-language encoders
+# transformers>=5.0 requires torch>=2.4, so pin below 5.0
+transformers>=4.35,<5.0
+
+# Data loading
+Pillow>=9.0
+tqdm>=4.60
+
+# Qualcomm AI Hub (export.py only)
+qai-hub>=0.48.0
