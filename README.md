@@ -39,11 +39,11 @@ image-to-text/
 
 ```bash
 # Download the full COCO 2017 dataset from Kaggle (~26 GB)
-curl -L -o ~/Downloads/coco-2017-dataset.zip \
+curl -L -o ./coco-2017-dataset.zip \
   https://www.kaggle.com/api/v1/datasets/download/awsaf49/coco-2017-dataset
 
 # Extract into the project directory
-unzip ~/Downloads/coco-2017-dataset.zip -d /path/to/image-to-text
+unzip ./coco-2017-dataset.zip -d /path/to/image-to-text
 ```
 
 After extraction, the directory structure should look like this:
