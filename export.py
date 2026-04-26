@@ -13,7 +13,7 @@ def export_onnx(checkpoint: str = 'checkpoints/final_model.pt', embed_dim: int =
     model.load_state_dict(torch.load(checkpoint, map_location='cpu'))
     model.eval()
 
-    # --- Image encoder ---
+    # --- Image encoder (static shape: batch=1, 3x224x224) ---
     dummy_img = torch.randn(1, 3, 224, 224)
     torch.onnx.export(
         model.image_encoder,
@@ -21,12 +21,11 @@ def export_onnx(checkpoint: str = 'checkpoints/final_model.pt', embed_dim: int =
         'image_encoder.onnx',
         input_names=['image'],
         output_names=['embedding'],
-        dynamic_axes={'image': {0: 'batch'}, 'embedding': {0: 'batch'}},
         opset_version=17,
     )
-    print('Exported image_encoder.onnx')
+    print('Exported image_encoder.onnx  [1, 3, 224, 224]')
 
-    # --- Text encoder ---
+    # --- Text encoder (static shape: batch=1, seq_len=64) ---
     dummy_ids = torch.zeros(1, 64, dtype=torch.long)
     dummy_mask = torch.ones(1, 64, dtype=torch.long)
     torch.onnx.export(
@@ -35,24 +34,21 @@ def export_onnx(checkpoint: str = 'checkpoints/final_model.pt', embed_dim: int =
         'text_encoder.onnx',
         input_names=['input_ids', 'attention_mask'],
         output_names=['embedding'],
-        dynamic_axes={
-            'input_ids': {0: 'batch'},
-            'attention_mask': {0: 'batch'},
-            'embedding': {0: 'batch'},
-        },
         opset_version=17,
     )
-    print('Exported text_encoder.onnx')
+    print('Exported text_encoder.onnx  [1, 64]')
 
 
-def submit_to_ai_hub() -> None:
-    """Upload ONNX models to Qualcomm AI Hub and compile for Snapdragon XR2 Gen 2."""
-    print('Uploading models to Qualcomm AI Hub...')
+def submit_to_ai_hub(device_name: str = 'Samsung Galaxy S24') -> None:
+    """Upload ONNX models to Qualcomm AI Hub and compile for the target device.
+    Run `qai_hub.get_devices()` to list all available device names.
+    """
+    print(f'Uploading models to Qualcomm AI Hub... (device: {device_name})')
 
     img_hub_model = qai_hub.upload_model('image_encoder.onnx')
     img_job = qai_hub.submit_compile_job(
         model=img_hub_model,
-        device=qai_hub.Device('Snapdragon XR2 Gen 2'),
+        device=qai_hub.Device(device_name),
         options='--quantize_full_type int8 --quantize_io',
     )
     print(f'Image encoder compile job submitted: {img_job.job_id}')
@@ -60,8 +56,8 @@ def submit_to_ai_hub() -> None:
     txt_hub_model = qai_hub.upload_model('text_encoder.onnx')
     txt_job = qai_hub.submit_compile_job(
         model=txt_hub_model,
-        device=qai_hub.Device('Snapdragon XR2 Gen 2'),
-        options='--quantize_full_type int8 --quantize_io',
+        device=qai_hub.Device(device_name),
+        options='--quantize_full_type int8 --quantize_io --truncate_64bit_io',
     )
     print(f'Text encoder compile job submitted: {txt_job.job_id}')
 
@@ -69,5 +65,20 @@ def submit_to_ai_hub() -> None:
 
 
 if __name__ == '__main__':
-    export_onnx()
-    submit_to_ai_hub()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--checkpoint', default='checkpoints/final_model.pt')
+    parser.add_argument('--embed_dim',  type=int, default=256)
+    parser.add_argument('--device',     default='Samsung Galaxy S24',
+                        help='AI Hub device name (run qai_hub.get_devices() to list)')
+    parser.add_argument('--list_devices', action='store_true',
+                        help='Print available AI Hub devices and exit')
+    args = parser.parse_args()
+
+    if args.list_devices:
+        import qai_hub
+        for d in qai_hub.get_devices():
+            print(d.name)
+    else:
+        export_onnx(checkpoint=args.checkpoint, embed_dim=args.embed_dim)
+        submit_to_ai_hub(device_name=args.device)
