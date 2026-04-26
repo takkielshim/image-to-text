@@ -57,7 +57,11 @@ def submit_to_ai_hub(device_name: str = 'Samsung Galaxy S24') -> None:
     txt_job = qai_hub.submit_compile_job(
         model=txt_hub_model,
         device=qai_hub.Device(device_name),
-        options='--quantize_full_type int8 --quantize_io --truncate_64bit_io',
+        # Use QNN context binary runtime instead of TFLite:
+        # - TFLite int8: crashes (QuantizeMultiplierSmallerThanOneExp on SUB)
+        # - TFLite w8a16: CAST and SELECT_V2 unsupported
+        # - qnn_context_binary int8: QNN handles scale differently, may pass
+        options='--target_runtime qnn_context_binary --quantize_full_type int8 --quantize_io --truncate_64bit_io',
     )
     print(f'Text encoder compile job submitted: {txt_job.job_id}')
 
